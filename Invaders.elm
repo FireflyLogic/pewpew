@@ -3,6 +3,7 @@ module PewPew where
 import Keyboard
 import Text
 import Window
+import String
 
 {-- Inputs --}
 
@@ -31,37 +32,64 @@ input =
 {-- Model --}
 
 (gameWidth,gameHeight) = (600,400)
-(halfWidth,halfHeight) = (300,200)
+(halfWidth,halfHeight) = (gameWidth/2,gameHeight/2)
+padding = 4
+size = 30
+
 
 --data State = Start | Play | End
 
 type Object a = { a | x:Float, y:Float, vx:Float, vy:Float }
 
 type Ship = Object {}
--- type Enemy = Object { hits:Int }
+type Enemy = Object { hits:Int }
 type Projectile = Object {}
 
 type Game = {
     --score: Int,
     --state: State,
     ship: Ship,
-    projectiles: [Projectile]
-    -- enemies: [Enemy],
+    projectiles: [Projectile],
+    enemies: [Enemy]
     -- enemyProjectiles: [Projectile]
     }
 
--- enemy : Int ->  Player
--- enemy x hits = { x=x, y=0, vx=0, vy=0, hits=hits }
+withIndex list = list |> zip [0..length list]
 
--- with_index list = zip [0..(length list) ] list
+makeEnemy: number -> number -> String -> Maybe Enemy
+makeEnemy row col c=
+   let y =  200 - (row * size)
+       x = (col * size) -  300
+   in
+     case c of
+       "*" -> Just { x=x, y=y, vx=0, vy=0, hits=1 }
+       _   -> Nothing
+
+parseLine: (number,String) -> [Enemy]
+parseLine (row, chars) =
+   chars |> String.split "" |> withIndex |> map (\(col,char)-> makeEnemy row col char) |> justs
+
+asciiToEnemies: String -> [Enemy]
+asciiToEnemies s =
+ let lines = s |> String.split "\n"
+ in lines |> withIndex |> concatMap parseLine
+
+level = """
+  *      **   *
+  * *   *  *  * *
+  * *   *  *  * *
+  ****  *  *  ****
+    *   *  *    *
+    *    **     *
+"""
 
 defaultGame : Game
 defaultGame = {
     --score            = 0,
     --state            = Start,
     ship             = { x=-halfWidth, y=20-halfHeight, vx = 0, vy=0},
-    projectiles      = []
-    -- enemies          = [],
+    projectiles      = [],
+    enemies          = asciiToEnemies level
     -- enemyProjectiles = []
     }
 
@@ -118,13 +146,18 @@ displayObj :  Shape -> Object a -> Form
 displayObj shape obj =
     move (obj.x,obj.y) (filled white shape)
 
+displayEnemy: Enemy -> Form
+displayEnemy enemy =
+    toForm (fittedImage 30 30 "/assets/red-2.png") |> move (enemy.x, enemy.y) |> rotate (degrees 180)
+
+
 -- display a game state
 display : (Int,Int) -> Game -> Element
-display (w,h) ({ship, projectiles} as game) =
+display (w,h) ({ship, projectiles, enemies} as game) =
     let objs = [
        filled starField   (rect gameWidth gameHeight),
        toForm (fittedImage 40 40 "/assets/ship.png") |> move (ship.x, ship.y)
-    ] ++ (map (displayObj (rect 2 6)) projectiles)
+    ] ++ (map (displayObj (rect 2 6)) projectiles) ++ (map displayEnemy enemies)
 
     in
         layers [
