@@ -1,50 +1,39 @@
-module GameSkeleton where
+module PewPew where
 
 import Keyboard
 import Text
 import Window
-import List
 
-{-- Part 1: Model the user input ----------------------------------------------
+{-- Inputs --}
 
-What information do you need to represent all relevant user input?
-
-Task: Redefine `UserInput` to include all of the information you need.
-      Redefine `userInput` to be a signal that correctly models the user
-      input as described by `UserInput`.
-
-------------------------------------------------------------------------------}
-
-type Input = { space:Bool, direction:Int, delta:Time }
+type Input = { firing:Bool, direction:Int, delta:Time }
 
 delta = inSeconds <~ fps 60
 
-input = sampleOn delta (Input <~ Keyboard.space
-                               ~ lift .x Keyboard.arrows
-                               ~ delta)
+throttle: Signal Bool -> Time -> Signal Bool
+throttle input interval=
+    let signal = timestamp <| sampleOn delta input
+        throttle (t,input) (_, tLast) =
+            if
+                | input && t-tLast > interval  -> (True,t)
+                | otherwise -> (False, tLast)
+    in
+        fst <~ foldp throttle (False,0) signal
+
+input =
+    sampleOn delta (Input <~
+        throttle Keyboard.space (250 * millisecond)
+       ~ lift .x Keyboard.arrows
+       ~ delta)
 
 
 
-{-- Part 2: Model the game ----------------------------------------------------
-
-What information do you need to represent the entire game?
-
-Tasks: Redefine `GameState` to represent your particular game.
-       Redefine `defaultGame` to represent your initial game state.
-
-For example, if you want to represent many objects that just have a position,
-your GameState might just be a list of coordinates and your default game might
-be an empty list (no objects at the start):
-
-    type GameState = { objects : [(Float,Float)] }
-    defaultGame = { objects = [] }
-
-------------------------------------------------------------------------------}
+{-- Model --}
 
 (gameWidth,gameHeight) = (600,400)
 (halfWidth,halfHeight) = (300,200)
 
-data State = Start | Play | End
+--data State = Start | Play | End
 
 type Object a = { a | x:Float, y:Float, vx:Float, vy:Float }
 
@@ -53,8 +42,8 @@ type Ship = Object {}
 type Projectile = Object {}
 
 type Game = {
-    score: Int,
-    state: State,
+    --score: Int,
+    --state: State,
     ship: Ship,
     projectiles: [Projectile]
     -- enemies: [Enemy],
@@ -68,8 +57,8 @@ type Game = {
 
 defaultGame : Game
 defaultGame = {
-    score            = 0,
-    state            = Start,
+    --score            = 0,
+    --state            = Start,
     ship             = { x=-halfWidth, y=20-halfHeight, vx = 0, vy=0},
     projectiles      = []
     -- enemies          = [],
@@ -78,15 +67,7 @@ defaultGame = {
 
 
 
-{-- Part 3: Update the game ---------------------------------------------------
-
-How does the game step from one state to another based on user input?
-
-Task: redefine `stepGame` to use the UserInput and GameState
-      you defined in parts 1 and 2. Maybe use some helper functions
-      to break up the work, stepping smaller parts of the game.
-
-------------------------------------------------------------------------------}
+{-- Updates --}
 
 stepObj : Time -> Object a -> Object a
 stepObj t ({x,y,vx,vy} as obj) =
@@ -96,33 +77,25 @@ stepObj t ({x,y,vx,vy} as obj) =
 stepShip : Time -> Int -> Ship -> Ship
 stepShip t dir ship =
     let shipWidth = 40
-        ship' = stepObj t { ship | vx <- toFloat dir * 600 }
-        x'      = clamp (shipWidth/2-halfWidth) (halfWidth-shipWidth/2) ship'.x
+        ship'     = stepObj t { ship | vx <- toFloat dir * 600 }
+        x'        = clamp (shipWidth/2-halfWidth) (halfWidth-shipWidth/2) ship'.x
   in
       { ship' | x <- x'}
 
 isOnScreen projectile = projectile.y < halfHeight
 
 stepProjectiles : Time -> Bool -> Float -> [Projectile] -> [Projectile]
-stepProjectiles t shooting origin projectiles =
-    let maxProjectiles = 10
-        projectileDistance = 60
-        projectiles' =  projectiles |> map (stepObj t) |> filter isOnScreen
-        canShoot =
-            length projectiles' < 20
-             && case projectiles' of
-                 head::tail -> head.y  >  projectileDistance - halfHeight
-                 [] -> True
-    in
-        if
-            | shooting && canShoot -> { x=origin, y=20-halfHeight, vx = 0, vy=200} :: projectiles'
-            | otherwise -> projectiles'
+stepProjectiles t firing origin projectiles =
+    let projectiles' =  projectiles |> map (stepObj t) |> filter isOnScreen
+    in case firing of
+        True -> { x=origin, y=20-halfHeight, vx = 0, vy=200} :: projectiles'
+        _ -> projectiles'
 
 stepGame : Input -> Game -> Game
-stepGame {space,direction,delta}
-         ({score, state, ship, projectiles} as game)=
-    let ship' = stepShip delta direction ship
-        projectiles' = stepProjectiles delta space ship.x projectiles
+stepGame {firing, direction, delta}
+         ({ship, projectiles} as game)=
+    let ship'        = stepShip delta direction ship
+        projectiles' = stepProjectiles delta firing ship.x projectiles
     in
         {game |
             ship <- ship',
@@ -132,13 +105,7 @@ stepGame {space,direction,delta}
 
 
 
-{-- Part 4: Display the game --------------------------------------------------
-
-How should the GameState be displayed to the user?
-
-Task: redefine `display` to use the GameState you defined in part 2.
-
-------------------------------------------------------------------------------}
+{-- View --}
 
 -- display : (Int,Int) -> Game -> Element
 -- display (w,h) gameState = asText gameState
@@ -153,27 +120,22 @@ displayObj shape obj =
 
 -- display a game state
 display : (Int,Int) -> Game -> Element
-display (w,h) ({score, state, ship, projectiles} as game) =
-    let lol = [
+display (w,h) ({ship, projectiles} as game) =
+    let objs = [
        filled starField   (rect gameWidth gameHeight),
        toForm (fittedImage 40 40 "/assets/ship.png") |> move (ship.x, ship.y)
     ] ++ (map (displayObj (rect 2 6)) projectiles)
 
     in
+        layers [
+        container w h midTop <| asText game,
         container w h middle <|
-            collage gameWidth gameHeight lol
+            collage gameWidth gameHeight objs
+            ]
 
 
 
 
-{-- That's all folks! ---------------------------------------------------------
-
-The following code puts it all together and shows it on screen.
-
-------------------------------------------------------------------------------}
-
-
-
+{-- Run --}
 game = foldp stepGame defaultGame input
-
-main = lift2 display Window.dimensions game
+main =  display <~ Window.dimensions ~ game
