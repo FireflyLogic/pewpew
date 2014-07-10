@@ -44,6 +44,7 @@ type Object a = { a | x:Float, y:Float, vx:Float, vy:Float }
 type Ship = Object {}
 type Enemy = Object { hits:Int }
 type Projectile = Object {}
+type Collision = (Object, Object)
 
 type Game = {
     --score: Int,
@@ -56,10 +57,9 @@ type Game = {
 
 withIndex list = list |> zip [0..length list]
 
-enemyVelocity: number -> number -> Float
-enemyVelocity v count =
-    v / count * 1000
-
+enemyVelocity: Int -> Int -> Float
+enemyVelocity dir enemiesRemaining =
+    (toFloat dir) / (toFloat enemiesRemaining) * 1000
 
 makeEnemy: number -> number -> String -> Maybe Enemy
 makeEnemy row col c=
@@ -78,7 +78,7 @@ asciiToEnemies: String -> [Enemy]
 asciiToEnemies s =
  let lines   = s |> String.split "\n"
      enemies = lines |> withIndex |> concatMap parseLine
-     count = toFloat <| length enemies
+     count = length enemies
  in enemies |> map (\enemy -> {enemy | vx <- enemyVelocity 1 count})
 
 level = """
@@ -112,7 +112,8 @@ stepObj t ({x,y,vx,vy} as obj) =
 stepShip : Time -> Int -> Ship -> Ship
 stepShip t dir ship =
     let shipWidth = 40
-        ship'     = stepObj t { ship | vx <- toFloat dir * 600 }
+        vx'       = toFloat dir * 400
+        ship'     = stepObj t { ship | vx <- vx'  }
         x'        = clamp (shipWidth/2-halfWidth) (halfWidth-shipWidth/2) ship'.x
   in
       { ship' | x <- x'}
@@ -128,40 +129,60 @@ stepProjectiles t firing origin projectiles =
 
 stepEnemies : Time -> [Enemy] -> [Enemy]
 stepEnemies t  enemies =
-    let enemies'   =  enemies |> map (stepObj t)
-        count      = toFloat <| length enemies'
+    let enemies'   = enemies |> map (stepObj t)
+        count      = length enemies'
         positions  = map .x enemies'
         (low,high) = (minimum positions, maximum positions)
-        velocity   =
-            if
-                | low + halfWidth <= 30 -> Just 1
-                | halfWidth - high < 30 -> Just -1
-                | otherwise  -> Nothing
+        dir        = if
+                        | low + halfWidth <= 30 -> Just 1
+                        | halfWidth - high < 30 -> Just -1
+                        | otherwise  -> Nothing
 
-    in case velocity of
+    in case dir of
          Just v -> map (\enemy -> { enemy | vx <- enemyVelocity v count }) enemies'
          _      -> enemies'
 
-stepGame : Input -> Game -> Game
-stepGame {firing, direction, delta}
-         ({ship, projectiles, enemies} as game)=
+-- are n and m near each other?
+-- specifically are they within c of each other?
+near : Float -> Float -> Float -> Bool
+near n c m = m >= n-c && m <= n+c
+
+-- is the ball within a paddle?
+within : (Projectile,Enemy) -> Bool
+within (projectile, enemy) =
+    (projectile.x |> near enemy.x 14) && (projectile.y |> near enemy.y 8)
+
+except: [a] -> [a] -> [a]
+except a b =
+    let inB x = any ((==) x) b
+    in filter (not . inB) a
+
+stepCollisions: [Projectile] -> [Enemy] -> ([Projectile],[Enemy])
+stepCollisions projectiles enemies =
+    let hits = projectiles |> concatMap ((flip map enemies) . (,)) |> filter within
+        (hitProjectiles,hitEnemies) = unzip hits
+    in
+        (projectiles `except` hitProjectiles, enemies `except` hitEnemies)
+
+
+
+step : Input -> Game -> Game
+step {firing, direction, delta} ({ship, projectiles, enemies} as game)=
     let ship'        = stepShip delta direction ship
         projectiles' = stepProjectiles delta firing ship.x projectiles
         enemies'     = stepEnemies delta enemies
+        (projectiles'',enemies'') = stepCollisions projectiles' enemies'
     in
         {game |
             ship <- ship',
-            projectiles <- projectiles',
-            enemies <- enemies'
+            projectiles <- projectiles'',
+            enemies <- enemies''
         }
 
 
 
 
 {-- View --}
-
--- display : (Int,Int) -> Game -> Element
--- display (w,h) gameState = asText gameState
 
 -- helper values
 starField = rgb 0 0 0
@@ -186,11 +207,11 @@ display (w,h) ({ship, projectiles, enemies} as game) =
 
     in
         layers [
-        container w h midTop <| asText game,
+        --container w h midTop <| asText game,
         container w h middle <|
             collage gameWidth gameHeight objs
             ]
 
 {-- Run --}
-game = foldp stepGame defaultGame input
+game = foldp step defaultGame input
 main =  display <~ Window.dimensions ~ game
