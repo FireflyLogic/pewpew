@@ -56,13 +56,18 @@ type Game = {
 
 withIndex list = list |> zip [0..length list]
 
+enemyVelocity: number -> number -> Float
+enemyVelocity v count =
+    v / count * 1000
+
+
 makeEnemy: number -> number -> String -> Maybe Enemy
 makeEnemy row col c=
    let y =  200 - (row * size)
        x = (col * size) -  300
    in
      case c of
-       "*" -> Just { x=x, y=y, vx=0, vy=0, hits=1 }
+       "*" -> Just { x=x, y=y, vx=1, vy=0, hits=1 }
        _   -> Nothing
 
 parseLine: (number,String) -> [Enemy]
@@ -71,8 +76,10 @@ parseLine (row, chars) =
 
 asciiToEnemies: String -> [Enemy]
 asciiToEnemies s =
- let lines = s |> String.split "\n"
- in lines |> withIndex |> concatMap parseLine
+ let lines   = s |> String.split "\n"
+     enemies = lines |> withIndex |> concatMap parseLine
+     count = toFloat <| length enemies
+ in enemies |> map (\enemy -> {enemy | vx <- enemyVelocity 1 count})
 
 level = """
   *      **   *
@@ -119,15 +126,33 @@ stepProjectiles t firing origin projectiles =
         True -> { x=origin, y=20-halfHeight, vx = 0, vy=200} :: projectiles'
         _ -> projectiles'
 
+stepEnemies : Time -> [Enemy] -> [Enemy]
+stepEnemies t  enemies =
+    let enemies'   =  enemies |> map (stepObj t)
+        count      = toFloat <| length enemies'
+        positions  = map .x enemies'
+        (low,high) = (minimum positions, maximum positions)
+        velocity   =
+            if
+                | low + halfWidth <= 30 -> Just 1
+                | halfWidth - high < 30 -> Just -1
+                | otherwise  -> Nothing
+
+    in case velocity of
+         Just v -> map (\enemy -> { enemy | vx <- enemyVelocity v count }) enemies'
+         _      -> enemies'
+
 stepGame : Input -> Game -> Game
 stepGame {firing, direction, delta}
-         ({ship, projectiles} as game)=
+         ({ship, projectiles, enemies} as game)=
     let ship'        = stepShip delta direction ship
         projectiles' = stepProjectiles delta firing ship.x projectiles
+        enemies'     = stepEnemies delta enemies
     in
         {game |
             ship <- ship',
-            projectiles <- projectiles'
+            projectiles <- projectiles',
+            enemies <- enemies'
         }
 
 
@@ -165,9 +190,6 @@ display (w,h) ({ship, projectiles, enemies} as game) =
         container w h middle <|
             collage gameWidth gameHeight objs
             ]
-
-
-
 
 {-- Run --}
 game = foldp stepGame defaultGame input
