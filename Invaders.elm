@@ -23,7 +23,7 @@ throttle input interval=
 
 input =
     sampleOn delta (Input <~
-        throttle Keyboard.space (250 * millisecond)
+        throttle Keyboard.space (350 * millisecond)
        ~ lift .x Keyboard.arrows
        ~ delta)
 
@@ -42,7 +42,8 @@ size = 30
 type Object a = { a | x:Float, y:Float, vx:Float, vy:Float }
 
 type Ship = Object {}
-type Enemy = Object { hits:Int }
+type Enemy = Object {}
+type Explosion = Object { time: Time }
 type Projectile = Object {}
 type Collision = (Object, Object)
 
@@ -51,7 +52,8 @@ type Game = {
     --state: State,
     ship: Ship,
     projectiles: [Projectile],
-    enemies: [Enemy]
+    enemies: [Enemy],
+    explosions: [Explosion]
     -- enemyProjectiles: [Projectile]
     }
 
@@ -67,7 +69,7 @@ makeEnemy row col c=
        x = (col * size) -  300
    in
      case c of
-       "*" -> Just { x=x, y=y, vx=1, vy=0, hits=1 }
+       "*" -> Just { x=x, y=y, vx=1, vy=0}
        _   -> Nothing
 
 parseLine: (number,String) -> [Enemy]
@@ -96,7 +98,8 @@ defaultGame = {
     --state            = Start,
     ship             = { x=-halfWidth, y=20-halfHeight, vx = 0, vy=0},
     projectiles      = [],
-    enemies          = asciiToEnemies level
+    enemies          = asciiToEnemies level,
+    explosions       = []
     -- enemyProjectiles = []
     }
 
@@ -128,7 +131,7 @@ stepProjectiles t firing origin projectiles =
         _ -> projectiles'
 
 stepEnemies : Time -> [Enemy] -> [Enemy]
-stepEnemies t  enemies =
+stepEnemies t enemies =
     let enemies'   = enemies |> map (stepObj t)
         count      = length enemies'
         positions  = map .x enemies'
@@ -157,26 +160,33 @@ except a b =
     let inB x = any ((==) x) b
     in filter (not . inB) a
 
-stepCollisions: [Projectile] -> [Enemy] -> ([Projectile],[Enemy])
+stepCollisions: [Projectile] -> [Enemy] -> ([Projectile],[Enemy],[Explosion])
 stepCollisions projectiles enemies =
     let hits = projectiles |> concatMap ((flip map enemies) . (,)) |> filter within
-        (hitProjectiles,hitEnemies) = unzip hits
+        (hitProjectiles, hitEnemies) = unzip hits
+        explosions = hitEnemies |> map (\enemy -> {enemy | time = inSeconds 100 * millisecond})
     in
-        (projectiles `except` hitProjectiles, enemies `except` hitEnemies)
+        (projectiles `except` hitProjectiles, enemies `except` hitEnemies, explosions)
 
+stepExplosions: Time -> [Explosion] -> [Explosion]
+stepExplosions t explosions =
+    let burn e = {e | time <- e.time - t}
+    in explosions |> map (stepObj t) |> map burn |> filter ((<) 0 . .time)
 
 
 step : Input -> Game -> Game
-step {firing, direction, delta} ({ship, projectiles, enemies} as game)=
+step {firing, direction, delta} ({ship, projectiles, enemies, explosions} as game)=
     let ship'        = stepShip delta direction ship
         projectiles' = stepProjectiles delta firing ship.x projectiles
         enemies'     = stepEnemies delta enemies
-        (projectiles'',enemies'') = stepCollisions projectiles' enemies'
+        (projectiles'',enemies'', explosions') = stepCollisions projectiles' enemies'
+        explosions'' = stepExplosions delta explosions ++ explosions'
     in
         {game |
             ship <- ship',
             projectiles <- projectiles'',
-            enemies <- enemies''
+            enemies <- enemies'',
+            explosions <- explosions''
         }
 
 
@@ -196,14 +206,18 @@ displayEnemy: Enemy -> Form
 displayEnemy enemy =
     toForm (fittedImage 30 30 "/assets/red-2.png") |> move (enemy.x, enemy.y) |> rotate (degrees 180)
 
+displayExplosion: Explosion -> Form
+displayExplosion boom =
+    toForm (fittedImage 30 30 "/assets/explosion.png") |> move (boom.x, boom.y) |> rotate (degrees 180)
+
 
 -- display a game state
 display : (Int,Int) -> Game -> Element
-display (w,h) ({ship, projectiles, enemies} as game) =
+display (w,h) ({ship, projectiles, enemies, explosions} as game) =
     let objs = [
        filled starField   (rect gameWidth gameHeight),
        toForm (fittedImage 40 40 "/assets/ship.png") |> move (ship.x, ship.y)
-    ] ++ (map (displayObj (rect 2 6)) projectiles) ++ (map displayEnemy enemies)
+    ] ++ (map (displayObj (rect 2 6)) projectiles) ++ (map displayEnemy enemies) ++ (map displayExplosion explosions)
 
     in
         layers [
