@@ -11,3 +11,12 @@ throttle input interval=
             | otherwise -> (False, tLast)
     in
         fst <~ foldp throttle' (False,0) sampled
+
+cubicEasing: Int -> Float -> Float -> Int -> Float
+cubicEasing duration min max t =
+   let t' = (toFloat t) / (toFloat duration/2.0)
+   in if
+      | t' < 1 -> (max-min)/2.0 * t' ^ 3 + min
+      | otherwise ->
+         let t'' = t' - 2.0
+         in (max-min)/2.0 * (t''^3 + 2.0) + min

@@ -4,7 +4,6 @@ import PewPew.Input (Input)
 import PewPew.Model (..)
 import PewPew.Utils as Utils
 
-
 stepObj : Time -> Object a -> Object a
 stepObj t ({x,y,vx,vy} as obj) =
     { obj | x <- x + vx * t
@@ -54,16 +53,10 @@ stepEnemies t enemies =
 
 shouldFire : Int -> Enemy -> Int -> Bool
 shouldFire enemiesRemaining enemy index =
-    let interval t =
-           let t' = (toFloat t) / (50.0/2.0)
-           in if
-              | t' < 1 -> 1.0/2.0 * t' * t'  * 8 + 1
-              | otherwise ->
-                 let t'' = t' - 1.0
-                 in -1.0/2.0 * (t'' * (t'' - 2.0) - 1.0) * 10.0
+    let interval = Utils.cubicEasing 34 1.0 10.0 enemiesRemaining
+        wobble = abs(tan(toFloat index)) * (toFloat enemiesRemaining) / 2
 
-        wobble = abs(tan(toFloat index) * toFloat enemiesRemaining / 4.0)
-    in enemy.lastFired > (interval enemiesRemaining) + wobble
+    in enemy.lastFired > interval + wobble
 
 tryEnemyFire : Int -> (Int,Enemy) -> (Enemy, Maybe Projectile)
 tryEnemyFire enemiesRemaing (index,enemy) =

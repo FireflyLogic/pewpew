@@ -1,4 +1,5 @@
 module PewPew.Model where
+import PewPew.Utils as Utils
 
 (gameWidth,gameHeight) = (600,400)
 (halfWidth,halfHeight) = (gameWidth/2,gameHeight/2)
@@ -36,7 +37,8 @@ type Game = {
 
 enemyVelocity: Int -> Int -> Float
 enemyVelocity dir enemiesRemaining =
-    (toFloat dir) / (toFloat enemiesRemaining) * 1000
+    let velocity = 200 - Utils.cubicEasing 34 0 175 enemiesRemaining
+    in velocity * (toFloat dir)
 
 
 makeEnemy: Int -> Int -> Float -> Enemy
