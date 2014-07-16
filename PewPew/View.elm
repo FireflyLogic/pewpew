@@ -27,15 +27,19 @@ displayExplosion boom =
 
 -- display a game state
 displayPlay : (Int,Int) -> Game -> Element
-displayPlay (w,h) ({ship, projectiles, enemies, explosions} as game) =
+displayPlay (w,h) ({ship, projectiles, enemies, explosions, enemyProjectiles} as game) =
     let objs = [
        filled starField   (rect gameWidth gameHeight),
        toForm (fittedImage 40 40 "/assets/ship.png") |> move (ship.x, ship.y)
-    ] ++ (map (displayObj (rect 2 6)) projectiles) ++ (map displayEnemy enemies) ++ (map displayExplosion explosions)
+    ] ++
+    (map (displayObj (rect 2 6)) projectiles) ++
+    (map displayEnemy enemies) ++
+    (map displayExplosion explosions) ++
+    (map (displayObj (rect 2 6)) enemyProjectiles)
 
     in
         layers [
-        --container w h midTop <| asText game,
+        --container w h midTop <| asText game.enemyProjectiles,
         container w h middle <|
             collage gameWidth gameHeight objs
             ]
@@ -45,7 +49,7 @@ displayWin (w,h) game =
     container w h middle <|
         collage gameWidth gameHeight [
            filled starField   (rect gameWidth gameHeight),
-           toForm (txt (Text.height 50) <| show "You WIN!") |> move (0, gameHeight/2 - 40)]
+           (toForm (txt (Text.height 50) <| show "You WIN!")) |> move (0, gameHeight/2 - 40)]
 
 display : (Int,Int) -> Game -> Element
 display dimensions ({state} as game) =
