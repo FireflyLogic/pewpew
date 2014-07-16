@@ -2,7 +2,6 @@ module PewPew.View where
 
 import PewPew.Model (..)
 
-
 textColor = rgb 255 255 255
 txt fn message =
     (leftAligned . (typeface ["helvetica", "sans-serif"]) . (Text.color textColor) . fn) (toText message)
@@ -50,14 +49,25 @@ displayPlay (w,h) ({state, score, ship, projectiles, enemies, explosions, enemyP
             container w 20 topLeft <| (flow down [txt (Text.height 16) (String.append "SCORE: "  (show score))])
         ]
 
+tweetLink score =
+    let base = "https://twitter.com/intent/tweet?text="
+        --HACK: pre-encoded
+        text = String.join " " [
+            "I%20scored",
+            show score,
+            "on%20the%20%40FireflyLogic%20404%20game!%20http%3A%2F%2Ffireflylogic.com%2Fcobol-projects%20%23pewpew"
+        ]
+    in String.append base text
+
 displayGameOver : String -> (Int,Int) -> Game -> Element
-displayGameOver message (w,h) game =
+displayGameOver message (w,h) ({score} as game) =
     layers [
         displayPlay (w,h) game,
         container w h topLeft <|
             collage gameWidth gameHeight [
-                filled (rgba 0 0 0 0.5)  (rect gameWidth gameHeight),
-                toForm (txt (Text.height 50) message) |> move (0, gameHeight/2 - 60)
+                filled (rgba 0 0 0 0.2)  (rect gameWidth gameHeight),
+                toForm (txt (Text.height 50) message) |> move (0, gameHeight/2 - 120),
+                toForm (txt ((Text.height 16) . (line Under)) "Tweet My Score" |> link (tweetLink score)) |> move (0, 0) --
             ]
     ]
 
