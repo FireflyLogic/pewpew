@@ -14,11 +14,15 @@ displayObj shape obj =
 
 displayEnemy: Enemy -> Form
 displayEnemy enemy =
-    toForm (fittedImage 30 30 "/assets/red-2.png") |> move (enemy.x, enemy.y) |> rotate (degrees 180)
+    toForm (fittedImage 30 30 "/assets/red-2.png")
+    |> move (enemy.x, enemy.y)
+    |> rotate (degrees 180)
 
 displayExplosion: Explosion -> Form
 displayExplosion boom =
-    toForm (fittedImage 30 30 "/assets/explosion.png") |> move (boom.x, boom.y) |> rotate (degrees 180) |> scale (1.2 * boom.time/0.15)
+    toForm (fittedImage 30 30 "/assets/explosion.png")
+    |> move (boom.x, boom.y)
+    |> scale (1.2 * boom.time/0.15)
 
 
 -- display a game state
