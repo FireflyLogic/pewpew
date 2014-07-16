@@ -26,7 +26,8 @@ type Projectile = Object {}
 type Collision = (Object, Object)
 
 type Game = {
-    --score: Int,
+    score: Int,
+    duration: Time,
     state: State,
     ship: Ship,
     projectiles: [Projectile],
@@ -51,7 +52,8 @@ makeEnemy row col vx=
 
 defaultGame : Game
 defaultGame = {
-    --score            = 0,
+    score            = 0,
+    duration         = 0,
     state            = Play,
     ship             = { x=-halfWidth, y=20-halfHeight, vx = 0, vy=0, width = 40, height = 40},
     projectiles      = [],

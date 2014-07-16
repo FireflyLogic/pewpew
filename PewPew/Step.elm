@@ -130,9 +130,13 @@ stepExplosions t explosions =
     let burn e = {e | time <- e.time - t}
     in explosions |> map (stepObj t) |> map burn |> filter ((<) 0 . .time)
 
+stepScore score duration enemiesHit =
+    case enemiesHit of
+        0 -> score
+        _ -> score + enemiesHit * max (truncate (300 - duration)) 1
 
 stepPlay : Input -> Game -> Game
-stepPlay {firing, direction, delta} ({ship, projectiles, enemies, explosions, enemyProjectiles} as game)=
+stepPlay {firing, direction, delta} ({score, duration, ship, projectiles, enemies, explosions, enemyProjectiles} as game)=
     let ship' = stepShip delta direction ship
         projectiles' = stepProjectiles delta firing ship.x projectiles
         (enemies',enemyProjectiles') = case enemies of
@@ -145,8 +149,12 @@ stepPlay {firing, direction, delta} ({ship, projectiles, enemies, explosions, en
             _  -> if
                 | enemyProjectiles' |> any (within 12 10 ship') -> Lose
                 | otherwise -> Play
+        duration' = duration + delta
+        score' = stepScore score duration' (length enemies - length enemies'')
     in
         {game |
+            score <- score',
+            duration <- duration',
             ship <- ship',
             projectiles <- projectiles'',
             enemies <- enemies'',

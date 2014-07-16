@@ -39,7 +39,7 @@ displayPlay (w,h) ({ship, projectiles, enemies, explosions, enemyProjectiles} as
 
     in
         layers [
-        --container w h midTop <| asText game.enemyProjectiles,
+        container w h midTop <| asText game.score,
         container w h middle <|
             collage gameWidth gameHeight objs
             ]
