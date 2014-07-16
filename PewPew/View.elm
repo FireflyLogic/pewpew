@@ -51,8 +51,16 @@ displayWin (w,h) game =
            filled starField   (rect gameWidth gameHeight),
            (toForm (txt (Text.height 50) <| show "You WIN!")) |> move (0, gameHeight/2 - 40)]
 
+displayLose : (Int,Int) -> Game -> Element
+displayLose (w,h) game =
+    container w h middle <|
+        collage gameWidth gameHeight [
+           filled starField   (rect gameWidth gameHeight),
+           (toForm (txt (Text.height 50) <| show "You Lost!")) |> move (0, gameHeight/2 - 40)]
+
 display : (Int,Int) -> Game -> Element
 display dimensions ({state} as game) =
     case state of
         Play -> displayPlay dimensions game
         Win  -> displayWin dimensions game
+        Lose -> displayLose dimensions game

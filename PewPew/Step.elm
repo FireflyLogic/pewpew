@@ -4,6 +4,8 @@ import PewPew.Input (Input)
 import PewPew.Model (..)
 import PewPew.Utils as Utils
 
+
+
 stepObj : Time -> Object a -> Object a
 stepObj t ({x,y,vx,vy} as obj) =
     { obj | x <- x + vx * t
@@ -16,6 +18,21 @@ isOnScreen {x,y} =
     && x < halfWidth
     && x > -halfWidth
 
+near : Float -> Float -> Float -> Bool
+near n c m = m >= n-c && m <= n+c
+
+within : Float -> Float -> Object a -> Object b -> Bool
+within x y a b =
+     (a.x |> near b.x x) && (a.y |> near b.y y)
+
+except: [a] -> [a] -> [a]
+except a b =
+    let inB x = any ((==) x) b
+    in filter (not . inB) a
+
+
+
+
 stepShip : Time -> Int -> Ship -> Ship
 stepShip t dir ship =
     let shipWidth = 40
@@ -26,6 +43,7 @@ stepShip t dir ship =
     in
       { ship' | x <- x'}
 
+
 stepProjectiles : Time -> Bool -> Float -> [Projectile] -> [Projectile]
 stepProjectiles t firing origin projectiles =
     let projectiles' =  projectiles
@@ -35,6 +53,7 @@ stepProjectiles t firing origin projectiles =
     in case firing of
         True -> { x=origin, y=20-halfHeight, vx = 0, vy=400, width=2, height=6 } :: projectiles'
         _ -> projectiles'
+
 
 stepEnemies : Time -> [Enemy] -> [Enemy]
 stepEnemies t enemies =
@@ -51,12 +70,14 @@ stepEnemies t enemies =
          Just v -> map (\enemy -> { enemy | vx <- enemyVelocity v count }) enemies'
          _      -> enemies'
 
+
 shouldFire : Int -> Enemy -> Int -> Bool
 shouldFire enemiesRemaining enemy index =
     let interval = Utils.cubicEasing 34 1.0 10.0 enemiesRemaining
         wobble = abs(tan(toFloat index)) * (toFloat enemiesRemaining) / 2
 
     in enemy.lastFired > interval + wobble
+
 
 tryEnemyFire : Int -> (Int,Enemy) -> (Enemy, Maybe Projectile)
 tryEnemyFire enemiesRemaing (index,enemy) =
@@ -65,11 +86,12 @@ tryEnemyFire enemiesRemaing (index,enemy) =
         Just {
             x = enemy.x,
             y = enemy.y,
-            vy = -200,
+            vy = -100,
             vx = 0,
             width = 2,
             height = 6})
     False -> (enemy,Nothing)
+
 
 stepEnemyFire : Time -> [Projectile] -> [Enemy] -> ([Enemy],[Projectile])
 stepEnemyFire t projectiles enemies =
@@ -85,24 +107,9 @@ stepEnemyFire t projectiles enemies =
     in (enemies' |> map (\enemy -> {enemy| lastFired <- enemy.lastFired + t}),(newProjectiles |> justs) ++ projectiles')
 
 
--- are n and m near each other?
--- specifically are they within c of each other?
-near : Float -> Float -> Float -> Bool
-near n c m = m >= n-c && m <= n+c
-
--- is the ball within a paddle?
-within : (Projectile,Enemy) -> Bool
-within (projectile, enemy) =
-    (projectile.x |> near enemy.x 14) && (projectile.y |> near enemy.y 8)
-
-except: [a] -> [a] -> [a]
-except a b =
-    let inB x = any ((==) x) b
-    in filter (not . inB) a
-
-stepCollisions: [Projectile] -> [Enemy] -> ([Projectile],[Enemy],[Explosion])
-stepCollisions projectiles enemies =
-    let hits = projectiles |> concatMap ((flip map enemies) . (,)) |> filter within
+stepEnemyCollisions: [Projectile] -> [Enemy] -> ([Projectile],[Enemy],[Explosion])
+stepEnemyCollisions projectiles enemies =
+    let hits = projectiles |> concatMap ((flip map enemies) . (,)) |> filter (uncurry (within 14 8))
         (hitProjectiles, hitEnemies) = unzip hits
         explosions = hitEnemies
             |> map (\enemy -> {
@@ -117,6 +124,7 @@ stepCollisions projectiles enemies =
     in
         (projectiles `except` hitProjectiles, enemies `except` hitEnemies, explosions)
 
+
 stepExplosions: Time -> [Explosion] -> [Explosion]
 stepExplosions t explosions =
     let burn e = {e | time <- e.time - t}
@@ -130,11 +138,13 @@ stepPlay {firing, direction, delta} ({ship, projectiles, enemies, explosions, en
         (enemies',enemyProjectiles') = case enemies of
             [] -> (enemies,enemyProjectiles)
             _  -> stepEnemies delta enemies |> (stepEnemyFire delta enemyProjectiles)
-        (projectiles'',enemies'', explosions') = stepCollisions projectiles' enemies'
+        (projectiles'',enemies'', explosions') = stepEnemyCollisions projectiles' enemies'
         explosions'' = stepExplosions delta explosions ++ explosions'
         state' = case enemies of
             [] -> Win
-            _  -> Play
+            _  -> if
+                | enemyProjectiles' |> any (within 12 10 ship') -> Lose
+                | otherwise -> Play
     in
         {game |
             ship <- ship',
@@ -145,8 +155,10 @@ stepPlay {firing, direction, delta} ({ship, projectiles, enemies, explosions, en
             enemyProjectiles <- enemyProjectiles'
         }
 
+
 next : Input -> Game -> Game
 next input ({state} as game)=
     case state of
         Play -> stepPlay input game
         Win  -> game
+        Lose -> game
