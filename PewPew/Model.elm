@@ -44,7 +44,7 @@ enemyVelocity dir enemiesRemaining =
 
 makeEnemy: Int -> Int -> Float -> Enemy
 makeEnemy row col vx=
-   let y =  halfHeight - (toFloat row * size)
+   let y =  halfHeight - (toFloat row * size) - 20.0
        x = (toFloat col * size) - halfWidth
 
    in { x=x, y=y, vx=vx, vy=0.0, width=30, height=30, lastFired=0 }
