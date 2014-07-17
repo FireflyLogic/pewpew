@@ -20,3 +20,6 @@ cubicEasing duration min max t =
       | otherwise ->
          let t'' = t' - 2.0
          in (max-min)/2.0 * (t''^3 + 2.0) + min
+
+near : Float -> Float -> Float -> Bool
+near n c m = m >= n-c && m <= n+c

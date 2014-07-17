@@ -18,12 +18,9 @@ isOnScreen {x,y} =
     && x < halfWidth
     && x > -halfWidth
 
-near : Float -> Float -> Float -> Bool
-near n c m = m >= n-c && m <= n+c
-
 within : Float -> Float -> Object a -> Object b -> Bool
 within x y a b =
-     (a.x |> near b.x x) && (a.y |> near b.y y)
+     (a.x |> Utils.near b.x x) && (a.y |> Utils.near b.y y)
 
 except: [a] -> [a] -> [a]
 except a b =
