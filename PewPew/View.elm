@@ -64,7 +64,7 @@ displayGameOver message (w,h) ({score} as game) =
             collage gameWidth gameHeight [
                 filled (rgba 0 0 0 0.5)  (rect gameWidth gameHeight),
                 toForm (txt (Text.height 50) message) |> move (0, 30),
-                toForm (txt (line Under) "Tweet My Score" |> link (tweetLink score)) |> move (0, -30) --
+                toForm (txt ((Text.height 20) . (line Under)) "Tweet My Score" |> link (tweetLink score)) |> move (0, -30) --
             ]
     ]
 
