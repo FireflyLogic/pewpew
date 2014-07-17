@@ -13,25 +13,22 @@ displayObj shape obj =
 displayShip: State -> Ship -> Form
 displayShip state ship =
     case state of
-    Lose -> toForm (fittedImage 30 30 "/assets/explosion.png") |> move (ship.x, ship.y)
-    _    -> toForm (fittedImage 40 40 "/assets/ship.png") |> move (ship.x, ship.y)
+    Lose -> toForm (fittedImage 30 30 "assets/explosion.png") |> move (ship.x, ship.y)
+    _    -> toForm (fittedImage 40 40 "assets/ship.png") |> move (ship.x, ship.y)
 
 displayEnemy: Enemy -> Form
 displayEnemy enemy =
-    toForm (fittedImage 30 30 "/assets/red-2.png")
+    toForm (fittedImage 30 30 "assets/red-2.png")
     |> move (enemy.x, enemy.y)
     |> rotate (degrees 180)
 
 displayExplosion: Explosion -> Form
 displayExplosion boom =
-    toForm (fittedImage 30 30 "/assets/explosion.png")
+    toForm (fittedImage 30 30 "assets/explosion.png")
     |> move (boom.x, boom.y)
     |> scale (1.2 * boom.time/0.15)
 
 
-
-
--- display a game state
 displayPlay : (Int,Int) -> Game -> Element
 displayPlay (w,h) ({state, score, ship, projectiles, enemies, explosions, enemyProjectiles} as game) =
     let objs = [
@@ -55,7 +52,7 @@ tweetLink score =
         text = String.join " " [
             "I%20scored",
             show score,
-            "on%20the%20%40FireflyLogic%20404%20game!%20http%3A%2F%2Ffireflylogic.com%2Fcobol-projects%20%23pewpew"
+            "on%20the%20%40FireflyLogic%20404%20game!%20http%3A%2F%2Ffireflylogic.com%2F404%20%23pewpew"
         ]
     in String.append base text
 
@@ -65,9 +62,9 @@ displayGameOver message (w,h) ({score} as game) =
         displayPlay (w,h) game,
         container w h topLeft <|
             collage gameWidth gameHeight [
-                filled (rgba 0 0 0 0.2)  (rect gameWidth gameHeight),
-                toForm (txt (Text.height 50) message) |> move (0, gameHeight/2 - 120),
-                toForm (txt ((Text.height 16) . (line Under)) "Tweet My Score" |> link (tweetLink score)) |> move (0, 0) --
+                filled (rgba 0 0 0 0.5)  (rect gameWidth gameHeight),
+                toForm (txt (Text.height 50) message) |> move (0, 30),
+                toForm (txt (line Under) "Tweet My Score" |> link (tweetLink score)) |> move (0, -30) --
             ]
     ]
 
