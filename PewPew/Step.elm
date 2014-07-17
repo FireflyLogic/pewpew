@@ -4,8 +4,11 @@ import PewPew.Input (Input)
 import PewPew.Model (..)
 import PewPew.Utils as Utils
 
+--
+--Helper functions
+--
 
-
+-- From Pong in Elm sample (http://elm-lang.org/edit/examples/Intermediate/Pong.elm)
 stepObj : Time -> Object a -> Object a
 stepObj t ({x,y,vx,vy} as obj) =
     { obj | x <- x + vx * t
@@ -28,14 +31,16 @@ except a b =
     in filter (not . inB) a
 
 
-
+--
+-- Model specific step functions
+--
 
 stepShip : Time -> Int -> Ship -> Ship
 stepShip t dir ship =
     let shipWidth = 40
-        vx'       = toFloat dir * 400
-        ship'     = stepObj t { ship | vx <- vx'  }
-        x'        = clamp (shipWidth/2-halfWidth) (halfWidth-shipWidth/2) ship'.x
+        vx' = toFloat dir * 400
+        ship' = stepObj t { ship | vx <- vx'  }
+        x' = clamp (shipWidth/2-halfWidth) (halfWidth-shipWidth/2) ship'.x
 
     in
       { ship' | x <- x'}
@@ -48,20 +53,22 @@ stepProjectiles t firing origin projectiles =
         |> filter isOnScreen
 
     in case firing of
-        True -> { x=origin, y=20-halfHeight, vx = 0, vy=400, width=2, height=6 } :: projectiles'
+        True -> { x=origin, y=20-halfHeight, vx = 0, vy=400 } :: projectiles'
         _ -> projectiles'
 
 
 stepEnemies : Time -> [Enemy] -> [Enemy]
 stepEnemies t enemies =
-    let enemies'   = enemies |> map (stepObj t) |> map (\e -> {e | lastFired <- e.lastFired + t})
-        count      = length enemies'
-        positions  = map .x enemies'
+    let enemies' = enemies
+                    |> map (stepObj t)
+                    |> map (\e -> {e | lastFired <- e.lastFired + t})
+        count = length enemies'
+        positions = map .x enemies'
         (low,high) = (minimum positions, maximum positions)
-        dir        = if
-                        | low + halfWidth <= 30 -> Just 1
-                        | halfWidth - high < 30 -> Just -1
-                        | otherwise  -> Nothing
+        dir = if
+                | low + halfWidth <= 30 -> Just 1
+                | halfWidth - high < 30 -> Just -1
+                | otherwise  -> Nothing
 
     in case dir of
          Just v -> map (\enemy -> { enemy | vx <- enemyVelocity v count }) enemies'
@@ -71,7 +78,7 @@ stepEnemies t enemies =
 shouldFire : Int -> Enemy -> Int -> Bool
 shouldFire enemiesRemaining enemy index =
     let interval = Utils.cubicEasing 34 1.0 10.0 enemiesRemaining
-        wobble = abs(tan(toFloat index)) * (toFloat enemiesRemaining) / 2
+        wobble   = abs(tan(toFloat index)) * (toFloat enemiesRemaining) / 2
 
     in enemy.lastFired > interval + wobble
 
@@ -79,29 +86,29 @@ shouldFire enemiesRemaining enemy index =
 tryEnemyFire : Int -> (Int,Enemy) -> (Enemy, Maybe Projectile)
 tryEnemyFire enemiesRemaing (index,enemy) =
     case shouldFire enemiesRemaing enemy index  of
-    True -> ({enemy| lastFired <- 0},
-        Just {
-            x = enemy.x,
-            y = enemy.y,
-            vy = -100,
-            vx = 0,
-            width = 2,
-            height = 6})
+    True  -> ({enemy| lastFired <- 0},
+              Just {
+                  x = enemy.x,
+                  y = enemy.y,
+                  vy = -100,
+                  vx = 0 })
     False -> (enemy,Nothing)
 
 
 stepEnemyFire : Time -> [Projectile] -> [Enemy] -> ([Enemy],[Projectile])
 stepEnemyFire t projectiles enemies =
-    let projectiles' = projectiles
-            |> map (stepObj t)
-            |> filter isOnScreen
+    let indexed = enemies |> Utils.withIndex
+        projectiles' = projectiles
+                        |> map (stepObj t)
+                        |> filter isOnScreen
 
-        indexed = enemies |> Utils.withIndex
         (enemies',newProjectiles) = indexed
-            |> map (tryEnemyFire (length enemies))
-            |> unzip
+                                    |> map (tryEnemyFire (length enemies))
+                                    |> unzip
+        enemies'' = enemies' |> map (\enemy -> {enemy| lastFired <- enemy.lastFired + t})
+        projectiles'' = (newProjectiles |> justs) ++ projectiles'
 
-    in (enemies' |> map (\enemy -> {enemy| lastFired <- enemy.lastFired + t}),(newProjectiles |> justs) ++ projectiles')
+    in (enemies'', projectiles'')
 
 
 stepEnemyCollisions: [Projectile] -> [Enemy] -> ([Projectile],[Enemy],[Explosion])
@@ -114,9 +121,7 @@ stepEnemyCollisions projectiles enemies =
                 vx = enemy.vx / 1.2 ,
                 vy = 0,
                 x = enemy.x,
-                y = enemy.y,
-                width = enemy.width,
-                height = enemy.height
+                y = enemy.y
             })
     in
         (projectiles `except` hitProjectiles, enemies `except` hitEnemies, explosions)
@@ -125,8 +130,13 @@ stepEnemyCollisions projectiles enemies =
 stepExplosions: Time -> [Explosion] -> [Explosion]
 stepExplosions t explosions =
     let burn e = {e | time <- e.time - t}
-    in explosions |> map (stepObj t) |> map burn |> filter ((<) 0 . .time)
+    in explosions
+        |> map (stepObj t)
+        |> map burn
+        |> filter ((<) 0 . .time)
 
+
+stepScore: Int -> Time -> Int -> Int
 stepScore score duration enemiesHit =
     case enemiesHit of
         0 -> score
@@ -141,13 +151,14 @@ stepPlay {firing, direction, delta} ({score, duration, ship, projectiles, enemie
             _  -> stepEnemies delta enemies |> (stepEnemyFire delta enemyProjectiles)
         (projectiles'',enemies'', explosions') = stepEnemyCollisions projectiles' enemies'
         explosions'' = stepExplosions delta explosions ++ explosions'
+        duration' = duration + delta
+        score' = stepScore score duration' (length enemies - length enemies'')
         state' = case enemies of
             [] -> Win
             _  -> if
                 | enemyProjectiles' |> any (within 12 10 ship') -> Lose
                 | otherwise -> Play
-        duration' = duration + delta
-        score' = stepScore score duration' (length enemies - length enemies'')
+
     in
         {game |
             score <- score',

@@ -15,6 +15,7 @@ parseLine (row, chars) =
        |> filter (nonBlank . snd)
        |> map (withRow . fst)
 
+
 asciiToEnemies: String -> [Model.Enemy]
 asciiToEnemies string =
     let lines = String.split "\n" string
@@ -27,6 +28,7 @@ asciiToEnemies string =
 
     in map makeEnemy positions
 
+
 level = """
   *      **   *
   * *   *  *  * *
@@ -35,6 +37,7 @@ level = """
     *   *  *    *
     *    **     *
 """
+
 
 create : () -> [Model.Enemy]
 create () =

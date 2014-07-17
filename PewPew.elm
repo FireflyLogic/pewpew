@@ -1,13 +1,12 @@
 module PewPew where
 
 import PewPew.Input (input)
-import PewPew.Model (Game, defaultGame)
-import PewPew.Level (create)
+import PewPew.Model (defaultGame)
+import PewPew.Level as Level
 import PewPew.Step as Step
 import PewPew.View as View
 import Window
 
-game = { defaultGame | enemies <- create()}
-
+game  = { defaultGame | enemies <- Level.create()}
 state = foldp Step.next game input
-main =  View.display <~ Window.dimensions ~ state
+main  = View.display <~ Window.dimensions ~ state

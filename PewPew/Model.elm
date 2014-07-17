@@ -3,13 +3,10 @@ import PewPew.Utils as Utils
 
 (gameWidth,gameHeight) = (600,400)
 (halfWidth,halfHeight) = (gameWidth/2,gameHeight/2)
-padding = 4
-size = 30.0
-
 
 data State = Play | Win | Lose
 
-type Object a = { a | x:Float, y:Float, vx:Float, vy:Float, width: Int, height:Int }
+type Object a = { a | x:Float, y:Float, vx:Float, vy:Float}
 
 type Ship = Object {}
 
@@ -22,8 +19,6 @@ type Explosion = Object {
 }
 
 type Projectile = Object {}
-
-type Collision = (Object, Object)
 
 type Game = {
     score: Int,
@@ -44,10 +39,11 @@ enemyVelocity dir enemiesRemaining =
 
 makeEnemy: Int -> Int -> Float -> Enemy
 makeEnemy row col vx=
-   let y =  halfHeight - (toFloat row * size) - 20.0
-       x = (toFloat col * size) - halfWidth
+   let enemySize = 30
+       y =  halfHeight - (toFloat row * enemySize) - 20.0
+       x = (toFloat col * enemySize) - halfWidth
 
-   in { x=x, y=y, vx=vx, vy=0.0, width=30, height=30, lastFired=0 }
+   in { x=x, y=y, vx=vx, vy=0.0, lastFired=0 }
 
 
 defaultGame : Game
@@ -55,7 +51,7 @@ defaultGame = {
     score            = 0,
     duration         = 0,
     state            = Play,
-    ship             = { x=-halfWidth, y=20-halfHeight, vx = 0, vy=0, width = 40, height = 40},
+    ship             = { x=-halfWidth, y=20-halfHeight, vx = 0, vy=0 },
     projectiles      = [],
     enemies          = [],
     explosions       = [],
