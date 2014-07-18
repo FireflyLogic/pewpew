@@ -1,6 +1,8 @@
 #PewPew
 A space shooter game written in Elm. You can see it in action [here](http://fireflylogic.com/404).
 
+![screenshot](pewpew.gif?raw=true)
+
 ## Running Locally
 * [Install Elm](https://github.com/elm-lang/elm-platform/blob/master/README.md#elm-platform)
 * Clone this repository
