@@ -1,5 +1,6 @@
 module PewPew.Level where
 
+import String
 import PewPew.Model as Model
 import PewPew.Utils as Utils
 
@@ -12,8 +13,8 @@ parseLine (row, chars) =
    in chars
        |> String.split ""
        |> Utils.withIndex
-       |> filter (nonBlank . snd)
-       |> map (withRow . fst)
+       |> filter (nonBlank << snd)
+       |> map (withRow << fst)
 
 
 asciiToEnemies: String -> [Model.Enemy]

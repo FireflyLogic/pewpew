@@ -1,9 +1,12 @@
 module PewPew.View where
 
+import String
+import Text
 import PewPew.Model (..)
 
+
 txt fn message =
-    (leftAligned . (typeface ["helvetica", "sans-serif"]) . (Text.color (rgb 255 255 255)) . fn) (toText message)
+    (leftAligned << (typeface ["helvetica", "sans-serif"]) << (Text.color (rgb 255 255 255)) << fn) (toText message)
 
 displayProjectile : Projectile -> Form
 displayProjectile {x,y} =
@@ -69,7 +72,7 @@ displayGameOver message (w,h) ({score} as game) =
             collage gameWidth gameHeight [
                 filled (rgba 0 0 0 0.5)  (rect gameWidth gameHeight),
                 toForm (txt (Text.height 50) message) |> move (0, 30),
-                toForm (txt ((Text.height 20) . (line Under)) "Tweet My Score" |> link (tweetLink score)) |> move (0, -30)
+                toForm (txt ((Text.height 20) << (Text.line Text.Under)) "Tweet My Score" |> link (tweetLink score)) |> move (0, -30)
             ]
     ]
 
