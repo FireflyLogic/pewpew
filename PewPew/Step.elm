@@ -1,5 +1,6 @@
 module PewPew.Step where
 
+import List
 import PewPew.Input (Input)
 import PewPew.Model (..)
 import PewPew.Utils as Utils
@@ -28,7 +29,7 @@ within x y a b =
 except: [a] -> [a] -> [a]
 except a b =
     let inB x = any ((==) x) b
-    in filter (not . inB) a
+    in filter (not << inB) a
 
 
 --
@@ -106,14 +107,14 @@ stepEnemyFire t projectiles enemies =
                                     |> map (tryEnemyFire (length enemies))
                                     |> unzip
         enemies'' = enemies' |> map (\enemy -> {enemy| lastFired <- enemy.lastFired + t})
-        projectiles'' = (newProjectiles |> justs) ++ projectiles'
+        projectiles'' = (newProjectiles |> (List.filterMap identity)) ++ projectiles'
 
     in (enemies'', projectiles'')
 
 
 stepEnemyCollisions: [Projectile] -> [Enemy] -> ([Projectile],[Enemy],[Explosion])
 stepEnemyCollisions projectiles enemies =
-    let hits = projectiles |> concatMap ((flip map enemies) . (,)) |> filter (uncurry (within 14 8))
+    let hits = projectiles |> concatMap ((flip map enemies) << (,)) |> filter (uncurry (within 14 8))
         (hitProjectiles, hitEnemies) = unzip hits
         explosions = hitEnemies
             |> map (\enemy -> {
@@ -133,7 +134,7 @@ stepExplosions t explosions =
     in explosions
         |> map (stepObj t)
         |> map burn
-        |> filter ((<) 0 . .time)
+        |> filter ((<) 0 << .time)
 
 
 stepScore: Int -> Time -> Int -> Int
