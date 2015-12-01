@@ -1,22 +1,25 @@
 module PewPew.Input where
 
 import Keyboard
-import Touch
+import List exposing (..)
 import PewPew.Utils as Utils
+import Signal
+import Time exposing (..)
+import Touch
 
-type Input = {
+type alias Input = {
     firing:Bool,
     direction:Int,
     delta:Time
 }
 
-touchFire: [Touch.Touch] -> Bool
+touchFire: List Touch.Touch -> Bool
 touchFire touches =
     (length touches) > 1 ||
     any (\ {x,x0} -> (x0-x)==0 ) touches
 
 
-touchMove: [Touch.Touch] -> Int
+touchMove: List Touch.Touch -> Int
 touchMove touches =
     let directionSignals = touches
         |> filter (\{x,x0} -> abs (x0-x) > 2)
@@ -25,12 +28,12 @@ touchMove touches =
         h::t -> h
         []   -> 0
 
-delta = inSeconds <~ fps 60
-firing = merge Keyboard.space (touchFire <~ Touch.touches)
-direction = merge (.x <~ Keyboard.arrows) (touchMove <~ Touch.touches)
+delta = Signal.map inSeconds (fps 60)
+firing = Signal.merge Keyboard.space (Signal.map touchFire Touch.touches)
+direction = Signal.merge (Signal.map (.x) Keyboard.arrows) (Signal.map touchMove Touch.touches)
 
 input =
-    sampleOn delta (Input <~
-        Utils.throttle firing (350 * millisecond)
-       ~ direction
-       ~ delta)
+    Signal.sampleOn delta (Signal.map3 Input
+        (Utils.throttle firing (350 * millisecond))
+        direction
+        delta)

@@ -1,12 +1,16 @@
 module PewPew.View where
 
+import Color exposing (rgb, rgba, white)
+import Graphics.Collage exposing (..)
+import Graphics.Element exposing (..)
+import List exposing (map)
+import PewPew.Model exposing (..)
 import String
-import Text
-import PewPew.Model (..)
+import Text exposing (fromString, Text, typeface)
 
 
 txt fn message =
-    (leftAligned << (typeface ["helvetica", "sans-serif"]) << (Text.color (rgb 255 255 255)) << fn) (toText message)
+    (leftAligned << (typeface ["helvetica", "sans-serif"]) << (Text.color (rgb 255 255 255)) << fn) (fromString message)
 
 displayProjectile : Projectile -> Form
 displayProjectile {x,y} =
@@ -48,7 +52,7 @@ displayPlay (w,h) ({state, score, ship, projectiles, enemies, explosions, enemyP
     in
         layers [
             container w h topLeft <| collage gameWidth gameHeight objs,
-            container w 20 topLeft <| (flow down [txt (Text.height 16) (String.append "SCORE: "  (show score))])
+            container w 20 topLeft <| (flow down [txt (Text.height 16) (String.append "SCORE: "  (toString score))])
         ]
 
 
@@ -58,7 +62,7 @@ tweetLink score =
         --HACK: pre-encoded
         text = String.join " " [
             "I%20scored",
-            show score,
+            toString score,
             "on%20the%20%40FireflyLogic%20404%20game!%20http%3A%2F%2Ffireflylogic.com%2F404%20%23pewpew"
         ]
     in String.append base text

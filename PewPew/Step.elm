@@ -1,9 +1,11 @@
 module PewPew.Step where
 
-import List
-import PewPew.Input (Input)
-import PewPew.Model (..)
+import List exposing (..)
+import Maybe exposing (withDefault)
+import PewPew.Input exposing (Input)
+import PewPew.Model exposing (..)
 import PewPew.Utils as Utils
+import Time exposing (Time, inSeconds, millisecond)
 
 --
 --Helper functions
@@ -12,8 +14,8 @@ import PewPew.Utils as Utils
 -- From Pong in Elm sample (http://elm-lang.org/edit/examples/Intermediate/Pong.elm)
 stepObj : Time -> Object a -> Object a
 stepObj t ({x,y,vx,vy} as obj) =
-    { obj | x <- x + vx * t
-          , y <- y + vy * t }
+    { obj | x = x + vx * t
+          , y = y + vy * t }
 
 isOnScreen : Object a -> Bool
 isOnScreen {x,y} =
@@ -26,7 +28,7 @@ within : Float -> Float -> Object a -> Object b -> Bool
 within x y a b =
      (a.x |> Utils.near b.x x) && (a.y |> Utils.near b.y y)
 
-except: [a] -> [a] -> [a]
+except: List a -> List a -> List a
 except a b =
     let inB x = any ((==) x) b
     in filter (not << inB) a
@@ -40,14 +42,14 @@ stepShip : Time -> Int -> Ship -> Ship
 stepShip t dir ship =
     let shipWidth = 40
         vx' = toFloat dir * 400
-        ship' = stepObj t { ship | vx <- vx'  }
+        ship' = stepObj t { ship | vx = vx' }
         x' = clamp (shipWidth/2-halfWidth) (halfWidth-shipWidth/2) ship'.x
 
     in
-      { ship' | x <- x'}
+      { ship' | x = x' }
 
 
-stepProjectiles : Time -> Bool -> Float -> [Projectile] -> [Projectile]
+stepProjectiles : Time -> Bool -> Float -> List Projectile -> List Projectile
 stepProjectiles t firing origin projectiles =
     let projectiles' =  projectiles
         |> map (stepObj t)
@@ -58,21 +60,24 @@ stepProjectiles t firing origin projectiles =
         _ -> projectiles'
 
 
-stepEnemies : Time -> [Enemy] -> [Enemy]
+stepEnemies : Time -> List Enemy -> List Enemy
 stepEnemies t enemies =
     let enemies' = enemies
                     |> map (stepObj t)
-                    |> map (\e -> {e | lastFired <- e.lastFired + t})
+                    |> map (\e -> {e | lastFired = e.lastFired + t})
         count = length enemies'
         positions = map .x enemies'
-        (low,high) = (minimum positions, maximum positions)
-        dir = if
-                | low + halfWidth <= 30 -> Just 1
-                | halfWidth - high < 30 -> Just -1
-                | otherwise  -> Nothing
+        (low,high) = (withDefault 0 (minimum positions), withDefault 0 (maximum positions))
+        dir =
+          if low + halfWidth <= 30 then
+            Just 1
+          else if halfWidth - high < 30 then
+            Just -1
+          else
+            Nothing
 
     in case dir of
-         Just v -> map (\enemy -> { enemy | vx <- enemyVelocity v count }) enemies'
+         Just v -> map (\enemy -> { enemy | vx = enemyVelocity v count }) enemies'
          _      -> enemies'
 
 
@@ -87,7 +92,7 @@ shouldFire enemiesRemaining enemy index =
 tryEnemyFire : Int -> (Int,Enemy) -> (Enemy, Maybe Projectile)
 tryEnemyFire enemiesRemaing (index,enemy) =
     case shouldFire enemiesRemaing enemy index  of
-    True  -> ({enemy| lastFired <- 0},
+    True  -> ({ enemy| lastFired = 0 },
               Just {
                   x = enemy.x,
                   y = enemy.y,
@@ -96,7 +101,7 @@ tryEnemyFire enemiesRemaing (index,enemy) =
     False -> (enemy,Nothing)
 
 
-stepEnemyFire : Time -> [Projectile] -> [Enemy] -> ([Enemy],[Projectile])
+stepEnemyFire : Time -> List Projectile -> List Enemy -> (List Enemy, List Projectile)
 stepEnemyFire t projectiles enemies =
     let indexed = enemies |> Utils.withIndex
         projectiles' = projectiles
@@ -106,13 +111,13 @@ stepEnemyFire t projectiles enemies =
         (enemies',newProjectiles) = indexed
                                     |> map (tryEnemyFire (length enemies))
                                     |> unzip
-        enemies'' = enemies' |> map (\enemy -> {enemy| lastFired <- enemy.lastFired + t})
-        projectiles'' = (newProjectiles |> (List.filterMap identity)) ++ projectiles'
+        enemies'' = enemies' |> map (\enemy -> {enemy| lastFired = enemy.lastFired + t})
+        projectiles'' = (newProjectiles |> (filterMap identity)) ++ projectiles'
 
     in (enemies'', projectiles'')
 
 
-stepEnemyCollisions: [Projectile] -> [Enemy] -> ([Projectile],[Enemy],[Explosion])
+stepEnemyCollisions: List Projectile -> List Enemy -> (List Projectile, List Enemy, List Explosion)
 stepEnemyCollisions projectiles enemies =
     let hits = projectiles |> concatMap ((flip map enemies) << (,)) |> filter (uncurry (within 14 8))
         (hitProjectiles, hitEnemies) = unzip hits
@@ -128,9 +133,9 @@ stepEnemyCollisions projectiles enemies =
         (projectiles `except` hitProjectiles, enemies `except` hitEnemies, explosions)
 
 
-stepExplosions: Time -> [Explosion] -> [Explosion]
+stepExplosions: Time -> List Explosion -> List Explosion
 stepExplosions t explosions =
-    let burn e = {e | time <- e.time - t}
+    let burn e = {e | time = e.time - t}
     in explosions
         |> map (stepObj t)
         |> map burn
@@ -156,20 +161,21 @@ stepPlay {firing, direction, delta} ({score, duration, ship, projectiles, enemie
         score' = stepScore score duration' (length enemies - length enemies'')
         state' = case enemies of
             [] -> Win
-            _  -> if
-                | enemyProjectiles' |> any (within 12 10 ship') -> Lose
-                | otherwise -> Play
+            _  -> if enemyProjectiles' |> any (within 12 10 ship') then
+                    Lose
+                  else
+                    Play
 
     in
         {game |
-            score <- score',
-            duration <- duration',
-            ship <- ship',
-            projectiles <- projectiles'',
-            enemies <- enemies'',
-            explosions <- explosions'',
-            state <- state',
-            enemyProjectiles <- enemyProjectiles'
+            score = score',
+            duration = duration',
+            ship = ship',
+            projectiles = projectiles'',
+            enemies = enemies'',
+            explosions = explosions'',
+            state = state',
+            enemyProjectiles = enemyProjectiles'
         }
 
 
