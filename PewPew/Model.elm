@@ -1,34 +1,36 @@
 module PewPew.Model where
+
 import PewPew.Utils as Utils
+import Time exposing (Time)
 
 (gameWidth,gameHeight) = (600,400)
 (halfWidth,halfHeight) = (gameWidth/2,gameHeight/2)
 
-data State = Play | Win | Lose
+type State = Play | Win | Lose
 
-type Object a = { a | x:Float, y:Float, vx:Float, vy:Float}
+type alias Object a = { a | x:Float, y:Float, vx:Float, vy:Float }
 
-type Ship = Object {}
+type alias Ship = Object {}
 
-type Enemy = Object {
+type alias Enemy = Object {
     lastFired: Time
 }
 
-type Explosion = Object {
+type alias Explosion = Object {
     time: Time
 }
 
-type Projectile = Object {}
+type alias Projectile = Object {}
 
-type Game = {
+type alias Game = {
     score: Int,
     duration: Time,
     state: State,
     ship: Ship,
-    projectiles: [Projectile],
-    enemies: [Enemy],
-    explosions: [Explosion],
-    enemyProjectiles: [Projectile]
+    projectiles: List Projectile,
+    enemies: List Enemy,
+    explosions: List Explosion,
+    enemyProjectiles: List Projectile
 }
 
 enemyVelocity: Int -> Int -> Float

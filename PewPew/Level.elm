@@ -1,11 +1,12 @@
 module PewPew.Level where
 
-import String
+import List exposing (..)
 import PewPew.Model as Model
 import PewPew.Utils as Utils
+import String
 
 
-parseLine: (Int, String) -> [(Int,Int)]
+parseLine: (Int, String) -> List (Int,Int)
 parseLine (row, chars) =
    let nonBlank c = c /= " "
        withRow col = (row,col)
@@ -17,7 +18,7 @@ parseLine (row, chars) =
        |> map (withRow << fst)
 
 
-asciiToEnemies: String -> [Model.Enemy]
+asciiToEnemies: String -> List Model.Enemy
 asciiToEnemies string =
     let lines = String.split "\n" string
         positions = lines
@@ -40,6 +41,6 @@ level = """
 """
 
 
-create : () -> [Model.Enemy]
+create : () -> List Model.Enemy
 create () =
     asciiToEnemies level
